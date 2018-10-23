@@ -70,6 +70,11 @@ if __name__ == '__main__':
   with tf.Session() as sess:
     sess.run(init)
 
+    writer = tf.summary.FileWriter("summaries/"+args.model, sess.graph)
+    test_acc_var = tf.placeholder(tf.float32)
+    test_acc_summary = tf.summary.scalar('test_acc', test_acc_var)
+    
+
     for epoch in range(args.epochs):
       train_accuracy_sum = 0.0
       for i_batch in range(n_batch_in_epoch):
@@ -104,7 +109,12 @@ if __name__ == '__main__':
           X_test_batch, y_test_batch = mnist.test.next_batch(args.batch)
           correct_predictions_sum_out += sess.run(correct_predictions_sum, feed_dict={x: X_test_batch, y: y_test_batch, training: False})
           i_batch += 1
-      print("Testing Accuracy:", correct_predictions_sum_out /  mnist.test.images.shape[0])
 
+      # Write to summary
+      test_accuracy = correct_predictions_sum_out /  mnist.test.images.shape[0]
+      print("Test Accuracy:", test_accuracy)
+      test_acc_summary_str  = sess.run(test_acc_summary, feed_dict={test_acc_var: test_accuracy})
+      writer.add_summary(test_acc_summary_str, epoch)
 
+    writer.close()
     print("Optimization Finished!")
