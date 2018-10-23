@@ -6,5 +6,8 @@ class ModelLoader(object):
     elif model == 'simple_cnn':
       from .simple_cnn import SimpleCNNModel
       return SimpleCNNModel()
+    elif model == 'simple_resnet':
+      from .simple_resnet import SimpleResnetModel
+      return SimpleResnetModel()
     else:
       ValueError('Invalid model')
