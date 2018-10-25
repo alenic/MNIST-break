@@ -10,4 +10,4 @@ class ModelLoader(object):
       from .simple_resnet import SimpleResnetModel
       return SimpleResnetModel()
     else:
-      ValueError('Invalid model')
+      raise ValueError('Invalid model')

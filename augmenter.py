@@ -27,7 +27,7 @@ class RandomShift(object):
 
 
 class RandomRotate(object):
-  def __init__(self,  min_angle=-12.0, max_angle=12.0):
+  def __init__(self,  min_angle=-8.0, max_angle=8.0):
     self.min_angle = min_angle
     self.max_angle = max_angle
   

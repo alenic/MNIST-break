@@ -29,9 +29,9 @@ class SimpleResnetModel():
 
   def getLogits(self, x, training):
     img = tf.reshape(x, [-1, self.img_height, self.img_width, self.img_channel])
-    conv1 = tf.layers.conv2d(img, filters=32, kernel_size=[7,7], strides=[2, 2], padding="same", activation=None)
-    res_block1 = self.residual_bn_relu_conv2d(conv1, filters=32, kernel_size=[3,3])
-    res_block2 = self.residual_bn_relu_conv2d(res_block1, filters=64, kernel_size=[3,3])
+    conv1 = tf.layers.conv2d(img, filters=8, kernel_size=[5,5], strides=[2, 2], padding="same", activation=None)
+    res_block1 = self.residual_bn_relu_conv2d(conv1, filters=16, kernel_size=[3,3])
+    res_block2 = self.residual_bn_relu_conv2d(res_block1, filters=32, kernel_size=[3,3])
     res1_flat = tf.contrib.layers.flatten(res_block2)
     dense = tf.layers.dense(inputs=res1_flat, units=1024, activation=tf.nn.relu)
     dropout = tf.layers.dropout(inputs=dense, rate=0.3, training=training)

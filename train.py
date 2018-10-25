@@ -55,9 +55,7 @@ if __name__ == '__main__':
   # Optimizer
   learning_rate = 1e-4
   momentum = 0.95
-  #optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
-  optimizer = tf.train.MomentumOptimizer(learning_rate, momentum).minimize(loss)
-
+  optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
 
   # -------------------- Training -------------------------------------------
   init = tf.global_variables_initializer()
@@ -70,11 +68,17 @@ if __name__ == '__main__':
   with tf.Session() as sess:
     sess.run(init)
 
-    writer = tf.summary.FileWriter("summaries/"+args.model, sess.graph)
+    # Summary writer initialization
+    if args.augment:
+      summary_folder = 'summaries_aug/'+args.model
+    else:
+      summary_folder = 'summaries_no_aug/'+args.model
+
+    writer = tf.summary.FileWriter(summary_folder, sess.graph)
     test_acc_var = tf.placeholder(tf.float32)
     test_acc_summary = tf.summary.scalar('test_acc', test_acc_var)
     
-
+    # Training loop
     for epoch in range(args.epochs):
       train_accuracy_sum = 0.0
       for i_batch in range(n_batch_in_epoch):
