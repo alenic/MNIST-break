@@ -2,11 +2,10 @@ import tensorflow as tf
 
 
 class SimpleResnetModel():
-  def __init__(self):
-    self.dropout_rate = 0.75
-    self.img_width = 28
-    self.img_height = 28
-    self.img_channel = 1
+  def __init__(self, n_classes, training_phase, dropout_rate=0.4):
+    self.n_classes = n_classes
+    self.training_phase = training_phase
+    self.dropout_rate = dropout_rate
 
   def residual_bn_relu_conv2d(self, x, filters, kernel_size):
     bn1 = tf.layers.batch_normalization(x, axis=1)
@@ -27,13 +26,13 @@ class SimpleResnetModel():
 
     return conv2 + padded_input
 
-  def getLogits(self, x, training):
-    img = tf.reshape(x, [-1, self.img_height, self.img_width, self.img_channel])
-    conv1 = tf.layers.conv2d(img, filters=8, kernel_size=[5,5], strides=[2, 2], padding="same", activation=None)
+  def buildModel(self, x):
+    nodes = {}
+    conv1 = tf.layers.conv2d(x, filters=8, kernel_size=[5,5], strides=[2, 2], padding="same", activation=None)
     res_block1 = self.residual_bn_relu_conv2d(conv1, filters=16, kernel_size=[3,3])
     res_block2 = self.residual_bn_relu_conv2d(res_block1, filters=32, kernel_size=[3,3])
     res1_flat = tf.contrib.layers.flatten(res_block2)
     dense = tf.layers.dense(inputs=res1_flat, units=1024, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(inputs=dense, rate=0.3, training=training)
-    logits = tf.layers.dense(inputs=dropout, units=10)
-    return logits
+    dropout = tf.layers.dropout(inputs=dense, rate=self.dropout_rate, training=self.training_phase)
+    nodes['logits'] = tf.layers.dense(inputs=dropout, units=self.n_classes)
+    return nodes

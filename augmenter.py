@@ -52,6 +52,7 @@ class RandomDilate(object):
     return scipy.ndimage.grey_dilation(image, size=(2,2))
 
 
+# ==================================== Main (used for test) ===================================
 if __name__ == '__main__':
   from tensorflow.examples.tutorials.mnist import input_data
   import matplotlib.pyplot as plt
