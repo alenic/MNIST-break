@@ -11,18 +11,17 @@ import numpy as np
 import math
 import random
 import cv2
-import pickle
 import argparse
 import mnist_models
 from tensorflow.examples.tutorials.mnist import input_data
 import augmenter as aug
 import time
-
+import os
 
 def main():
   parser = argparse.ArgumentParser(description='MNIST-break')
   parser.add_argument('--model', required=True, type=str, help='the classifier model as module name (e.g. linear')
-  parser.add_argument('--epochs', type=int, default=20, help='number of train epochs [default: 20]')
+  parser.add_argument('--epochs', type=int, default=40, help='number of train epochs [default: 20]')
   parser.add_argument('--batch', type=int, default=64, help='batch number [default: 64]')
   parser.add_argument('--augmentation', action='store_true', help='Activate random data augmentation')
   parser.add_argument('--seed', type=int, default=1234, help='seed of pseudorandom generator [default: 1234]')
@@ -53,15 +52,13 @@ def main():
 
   if args.augmentation:
     augmenter = aug.Augmenter([(aug.RandomRotate(), 0.5),
-                                (aug.RandomShift(), 0.5),
-                                (aug.RandomErode(), 0.25),
-                                (aug.RandomDilate(), 0.25)])
+                                (aug.RandomShift(), 0.5)])
 
   # =============================== Model Graph =================================
   tf.reset_default_graph()
   # placeholders
   x = tf.placeholder(tf.float32, [None, image_height, image_width, 1])
-  y = tf.placeholder(tf.float32, [None, n_classes])
+  label = tf.placeholder(tf.float32, [None, n_classes])
   training_phase = tf.placeholder(tf.bool)
   
   # Neural network model
@@ -77,16 +74,16 @@ def main():
   logits = model['logits']
   
   # =============================== Evaluation nodes ===============================
-  loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y))
-  correct_predictions = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
-  correct_predictions_sum = tf.reduce_sum(tf.cast(correct_predictions, tf.float32)) 
-  accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32))
+  loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=label))
+  correct_predictions = tf.equal(tf.argmax(logits, 1), tf.argmax(label, 1))
+  cp_sum = tf.reduce_sum(tf.cast(correct_predictions, tf.float32)) 
+  batch_accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32))
 
   # =============================== Optimization Nodes ===============================
   global_step = tf.Variable(0, trainable=False)
   n_iter = args.epochs * iter_epoch_train
   
-  boundaries = [int(n_iter*0.7), int(n_iter*0.9)]
+  boundaries = [int(n_iter*0.6), int(n_iter*0.8)]
   learning_rate_values = [1e-3, 2e-4, 5e-5]
   learning_rate = tf.train.piecewise_constant(global_step, boundaries, learning_rate_values)
 
@@ -100,14 +97,19 @@ def main():
   test_acc_var = tf.placeholder(tf.float32)
   test_acc_summary = tf.summary.scalar('test_accuracy', test_acc_var)
   lr_summary = tf.summary.scalar('learning_rate', learning_rate)
+  batch_acc_summary = tf.summary.scalar('batch_accuracy', batch_accuracy)
 
-  merged_summary = tf.summary.merge_all()
+  merged_summary = tf.summary.merge([train_acc_summary, test_acc_summary, lr_summary])
 
   # Summary writer initialization
   if args.augmentation:
-    summary_folder = 'summaries_aug/'+args.model
+    aug_folder = 'aug'
   else:
-    summary_folder = 'summaries_no_aug/'+args.model
+    aug_folder = 'no_aug'
+  
+  model_id = time.strftime('%Y-%m-%d_%H.%M.%S')
+
+  summary_folder = os.path.join('summaries', args.model, aug_folder, model_id) 
 
   # =============================== Training ========================================
   init_op = tf.global_variables_initializer()
@@ -120,8 +122,12 @@ def main():
     # Training loop
     for epoch in range(args.epochs):
       tic_time = time.time()
-      correct_predictions_train = 0.0
+      cp_train = 0.0
+
+      X_train, y_train = aug.shuffle(X_train, y_train)
       for iteration in range(iter_epoch_train):
+        step = sess.run(global_step)
+
         i1 = iteration*args.batch
         i2 = min((iteration+1)*args.batch,  n_train_samples)
         
@@ -131,13 +137,21 @@ def main():
         if args.augmentation:
           X_train_batch = augmenter.augment(X_train_batch)
 
-        sess.run(train_op, feed_dict={x: X_train_batch, y: y_train_batch, training_phase: True})
-        correct_predictions_train += sess.run(correct_predictions_sum, feed_dict={x: X_train_batch, y: y_train_batch, training_phase: False})
+        feed_train = {x: X_train_batch, label: y_train_batch, training_phase: False} 
+        sess.run(train_op, feed_dict=feed_train)
+        
+        feed_no_train = {x: X_train_batch, label: y_train_batch, training_phase: False} 
+        cp_sum_out = sess.run(cp_sum, feed_dict=feed_no_train)
 
+        if iteration % 100 == 0:
+          acc_summary_out = sess.run(batch_acc_summary, feed_dict=feed_no_train)
+          writer.add_summary(batch_acc_summary, step)
+
+        cp_train += cp_sum_out
       # Compute training accuracy
       print("Epoch %d of %d" % (epoch+1, args.epochs))
 
-      train_accuracy = correct_predictions_train/n_train_samples
+      train_accuracy = cp_train/n_train_samples
       print("Training accuracy: %.6f" % (train_accuracy))
 
       # Compute test accuracy
@@ -149,7 +163,7 @@ def main():
         X_test_batch = X_test[i1:i2]
         y_test_batch = y_test[i1:i2]
 
-        correct_predictions_test += sess.run(correct_predictions_sum, feed_dict={x: X_test_batch, y: y_test_batch, training_phase: False})
+        correct_predictions_test += sess.run(cp_sum, feed_dict={x: X_test_batch, label: y_test_batch, training_phase: False})
 
       test_accuracy = correct_predictions_test/n_test_samples
       print("Test accuracy: %.6f" % (test_accuracy))

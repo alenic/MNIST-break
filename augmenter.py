@@ -23,7 +23,7 @@ class RandomShift(object):
   def transform(self, image):
     x = random.randint(self.shift_x[0], self.shift_x[1])
     y = random.randint(self.shift_y[0], self.shift_y[1])
-    return scipy.ndimage.shift(image, [x,y])
+    return scipy.ndimage.shift(image, [x,y,0])
 
 
 class RandomRotate(object):
@@ -41,7 +41,7 @@ class RandomErode(object):
     pass
   
   def transform(self, image):
-    return scipy.ndimage.grey_erosion(image, size=(2,2))
+    return scipy.ndimage.grey_erosion(image, size=(2,2,1))
 
 
 class RandomDilate(object):
@@ -49,10 +49,16 @@ class RandomDilate(object):
     pass
   
   def transform(self, image):
-    return scipy.ndimage.grey_dilation(image, size=(2,2))
+    return scipy.ndimage.grey_dilation(image, size=(2,2,1))
 
 
-# ==================================== Main (used for test) ===================================
+def shuffle(X, y):
+  merged = list(zip(list(X), list(y)))
+  random.shuffle(merged)
+  X_s, y_s = zip(*merged)
+  return np.array(X_s), np.array(y_s)
+
+# ==================================== Main (TEST) ===================================
 if __name__ == '__main__':
   from tensorflow.examples.tutorials.mnist import input_data
   import matplotlib.pyplot as plt
