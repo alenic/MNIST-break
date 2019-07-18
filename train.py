@@ -25,6 +25,7 @@ def main():
   parser.add_argument('--batch', type=int, default=64, help='batch number [default: 64]')
   parser.add_argument('--augmentation', action='store_true', help='Activate random data augmentation')
   parser.add_argument('--seed', type=int, default=1234, help='seed of pseudorandom generator [default: 1234]')
+  parser.add_argument('--gpu', type=int, default=0, help='GPU id (use it for multi-gpu systems)')
   args = parser.parse_args()
 
   # =============================== Dataset =================================
@@ -114,7 +115,10 @@ def main():
   # =============================== Training ========================================
   init_op = tf.global_variables_initializer()
   
-  with tf.Session() as sess:
+  gpu_opts = tf.GPUOptions(visible_device_list=str(args.gpu))
+  config = tf.ConfigProto(gpu_options=gpu_opts)
+
+  with tf.Session(config=config) as sess:
     sess.run(init_op)
     
     writer = tf.summary.FileWriter(summary_folder, sess.graph)
@@ -145,7 +149,7 @@ def main():
 
         if iteration % 100 == 0:
           acc_summary_out = sess.run(batch_acc_summary, feed_dict=feed_no_train)
-          writer.add_summary(batch_acc_summary, step)
+          writer.add_summary(acc_summary_out, step)
 
         cp_train += cp_sum_out
       # Compute training accuracy
